@@ -1,10 +1,21 @@
 import json
 import networkx as nx
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import infomap
+from typing import List, Dict
+from SPARQLWrapper import SPARQLWrapper, JSON
+from matplotlib import colors as mpl_colors
+from matplotlib import cm
 
 sns.set_palette(sns.color_palette("colorblind"))
+
+try:
+    cmap = mpl_colors.ListedColormap(sns.color_palette("colorblind", as_cmap=True))
+    cm.register_cmap("colorblind", cmap)
+except:
+    pass
 
 
 def get_map_equation_example_network():
@@ -98,3 +109,4 @@ def partition(G, initial_partition=None, **infomap_args):
     G.graph["L"] = im.codelength
     G.graph["L_ind"] = im.index_codelength
     G.graph["L_mod"] = im.module_codelength
+    return im.get_dataframe(["node_id", "module_id"]).set_index("node_id")["module_id"]
