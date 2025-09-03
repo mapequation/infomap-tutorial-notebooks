@@ -6,3 +6,4 @@ scikit-learn
 matplotlib
 seaborn
 pandas
+git+https://github.com/mapequation/map-equation-similarity.git
