@@ -1,4 +1,5 @@
 import json
+import numpy as np
 import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -64,18 +65,33 @@ def plot_network(G, node_color_attr="module", **kwargs):
         if len(pos) == 0:
             pos = nx.kamada_kawai_layout(G)
 
+    def brighten(color):
+        c = np.array(list(color)[:3])
+        return tuple(float(x) for x in 0.5 * c + 0.5)
+
     node_color_attributes = nx.get_node_attributes(G, node_color_attr)
     if len(node_color_attributes) == 0:
-        node_colors = "#cccccc"
+        node_color_map = {n: (0.8, 0.8, 0.8) for n in G.nodes}
         n_modules = 0
     else:
         modules = set(node_color_attributes.values())
         module_to_index = {m: i for i, m in enumerate(modules)}
         n_modules = len(modules)
         palette = sns.color_palette(n_colors=n_modules)
-        node_colors = [
-            palette[module_to_index[m]] for m in node_color_attributes.values()
-        ]
+        node_color_map = {
+            n: palette[module_to_index[node_color_attributes[n]]]
+            for n in node_color_attributes
+        }
+
+    node_colors = [node_color_map.get(n, (0.8, 0.8, 0.8)) for n in G.nodes]
+
+    # edge color: blend endpoint colors, then brighten halfway to white
+    edge_colors = []
+    for u, v in G.edges:
+        cu = np.array(list(node_color_map.get(u, (0.8, 0.8, 0.8)))[:3])
+        cv = np.array(list(node_color_map.get(v, (0.8, 0.8, 0.8)))[:3])
+        edge_colors.append(brighten((cu + cv) / 2))
+
     title = (
         "" if n_modules == 0 else f"{G.graph['M']} modules, {G.graph['L']:.2f} bits."
     )
@@ -86,18 +102,32 @@ def plot_network(G, node_color_attr="module", **kwargs):
         ax=ax,
         node_color=node_colors,
         width=[w for _, _, w in G.edges.data("weight")],
-        edge_color=["#aaaaaa" for _ in G.edges],
+        edge_color=edge_colors,
         arrows=True,
         connectionstyle="arc3,rad=0.1",
-        font_color="black",
         edgecolors="white",
         font_size=10,
+        with_labels=False,
         **kwargs,
     )
 
+    # draw labels per color group with that color brightened halfway to white
+    color_to_nodes = {}
+    for n in G.nodes:
+        key = tuple(round(x, 6) for x in node_color_map.get(n, (0.8, 0.8, 0.8))[:3])
+        color_to_nodes.setdefault(key, []).append(n)
+
+    for color_key, nodes in color_to_nodes.items():
+        nx.draw_networkx_labels(
+            G=G, pos=pos, ax=ax,
+            labels={n: n for n in nodes},
+            font_color=brighten(color_key),
+            font_size=10,
+        )
+
     ax.axis("off")
     ax.set(title=title)
-    # return ax
+    plt.show()
 
 
 def partition(G, initial_partition=None, **infomap_args):
