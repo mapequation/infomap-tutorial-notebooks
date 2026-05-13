@@ -130,6 +130,64 @@ def plot_network(G, node_color_attr="module", **kwargs):
     plt.show()
 
 
+def plot_network_regularization(G, node_color_attr="module", **kwargs):
+    _, ax = plt.subplots(1, 1, figsize=(8, 4))
+
+    if "pos" in kwargs:
+        pos = kwargs["pos"]
+        del kwargs["pos"]
+    else:
+        pos = nx.get_node_attributes(G, "pos")
+        if len(pos) == 0:
+            pos = nx.kamada_kawai_layout(G)
+
+    def brighten(color):
+        c = np.array(list(color)[:3])
+        return tuple(float(x) for x in 0.5 * c + 0.5)
+
+    node_color_attributes = nx.get_node_attributes(G, node_color_attr)
+    if len(node_color_attributes) == 0:
+        node_color_map = {n: (0.8, 0.8, 0.8) for n in G.nodes}
+        n_modules = 0
+    else:
+        modules = set(node_color_attributes.values())
+        module_to_index = {m: i for i, m in enumerate(modules)}
+        n_modules = len(modules)
+        palette = sns.color_palette(n_colors=n_modules)
+        node_color_map = {
+            n: palette[module_to_index[node_color_attributes[n]]]
+            for n in node_color_attributes
+        }
+
+    node_colors = [node_color_map.get(n, (0.8, 0.8, 0.8)) for n in G.nodes]
+
+    # edge color: blend endpoint colors, then brighten halfway to white
+    edge_colors = []
+    for u, v in G.edges:
+        cu = np.array(list(node_color_map.get(u, (0.8, 0.8, 0.8)))[:3])
+        cv = np.array(list(node_color_map.get(v, (0.8, 0.8, 0.8)))[:3])
+        edge_colors.append(brighten((cu + cv) / 2))
+
+    nx.draw_networkx(
+        G=G,
+        pos=pos,
+        ax=ax,
+        node_color=node_colors,
+        node_size=200,
+        width=0.5,
+        edge_color=edge_colors,
+        arrows=True,
+        connectionstyle="arc3,rad=0.1",
+        edgecolors="white",
+        font_size=10,
+        with_labels=False,
+        **kwargs,
+    )
+
+    ax.axis("off")
+    plt.show()
+
+
 def partition(G, initial_partition=None, **infomap_args):
     im = infomap.Infomap(silent=True, **infomap_args)
     im.add_networkx_graph(G)
